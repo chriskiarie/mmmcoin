@@ -10,24 +10,17 @@ import {
 export default function Home() {
   const navigate = useNavigate();
   const [hideBalance, setHideBalance] = useState(false);
-  const [currency, setCurrency] = useState('KES');
-
-  // Live Market Pulse prices
-  const [livePrices, setLivePrices] = useState({
-    BTCUSDT: { price: '—', change: '0', positive: true },
-    ETHUSDT: { price: '—', change: '0', positive: true },
+  const [currency, setCurrency]       = useState('KES');
+  const [livePrices, setLivePrices]   = useState({
+    BTCUSDT: { rawPrice: null, change: '0', positive: true },
+    ETHUSDT: { rawPrice: null, change: '0', positive: true },
   });
 
-  // Mock account data — replace with auth context later
-  const exchangeRate = 130.50;
-  const balanceInKES = 6850200;
-  const breakdown = {
-    available: balanceInKES * 0.7,
-    loaned:    balanceInKES * 0.2,
-    referrals: balanceInKES * 0.1,
-  };
+  const exchangeRate  = 130.50;
+  const balanceInKES  = 6850200;
+  const breakdown     = { available: balanceInKES * 0.7, loaned: balanceInKES * 0.2, referrals: balanceInKES * 0.1 };
 
-  const toggleCurrency = () => setCurrency(prev => prev === 'KES' ? 'USD' : 'KES');
+  const toggleCurrency = () => setCurrency(p => p === 'KES' ? 'USD' : 'KES');
 
   const formatDisplay = (val) => {
     if (hideBalance) return '••••••';
@@ -35,54 +28,37 @@ export default function Home() {
     return `$${(val / exchangeRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Live WebSocket for Market Pulse (BTC + ETH)
+  // Live Market Pulse
   useEffect(() => {
-    const ws = new WebSocket(
-      'wss://stream.binance.com:9443/ws/btcusdt@ticker/ethusdt@ticker'
-    );
-
-    ws.onmessage = (e) => {
+    const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker/ethusdt@ticker');
+    ws.onmessage = e => {
       const d = JSON.parse(e.data);
       if (!d.s) return;
-      const p = parseFloat(d.c);
+      const p   = parseFloat(d.c);
       const chg = parseFloat(d.P);
-
-      setLivePrices(prev => ({
-        ...prev,
-        [d.s]: {
-          price: currency === 'KES'
-            ? (p * exchangeRate).toLocaleString(undefined, { maximumFractionDigits: 0 })
-            : p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-          change: chg.toFixed(2),
-          positive: chg >= 0,
-          rawPrice: p,
-        },
-      }));
+      setLivePrices(prev => ({ ...prev, [d.s]: { rawPrice: p, change: chg.toFixed(2), positive: chg >= 0 } }));
     };
-
     return () => { try { ws.close(); } catch {} };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Reformat prices when currency changes
   const formatLivePrice = (coin) => {
-    if (!coin.rawPrice) return '—';
-    const p = coin.rawPrice;
-    if (currency === 'KES') return (p * exchangeRate).toLocaleString(undefined, { maximumFractionDigits: 0 });
-    return p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (!coin?.rawPrice) return '—';
+    if (currency === 'KES') return (coin.rawPrice * exchangeRate).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    return coin.rawPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const PULSE_COINS = [
-    { symbol: 'BTCUSDT', label: `BTC/${currency}`, letter: 'B', id: 'BTCUSDT' },
-    { symbol: 'ETHUSDT', label: `ETH/${currency}`, letter: 'E', id: 'ETHUSDT' },
+    { symbol: 'BTCUSDT', label: `BTC/${currency}`, letter: 'B' },
+    { symbol: 'ETHUSDT', label: `ETH/${currency}`, letter: 'E' },
   ];
 
   return (
     <div className="min-h-screen bg-[#060708] text-white pb-28 font-sans overflow-x-hidden">
-      
-      {/* ── Animated News Ribbon ── */}
-      <div className="bg-yellow-500/10 border-b border-yellow-500/20 py-2 relative overflow-hidden">
+
+      {/* News Ribbon */}
+      <div className="bg-yellow-500/10 border-b border-yellow-500/20 py-2 overflow-hidden">
         <div className="flex whitespace-nowrap animate-marquee items-center gap-8">
-          {[1, 2].map((i) => (
+          {[1, 2].map(i => (
             <div key={i} className="flex items-center gap-8">
               <span className="flex items-center gap-2 text-[10px] font-black uppercase text-yellow-500 tracking-widest">
                 <Megaphone size={12} /> Referral Bonus: Invite friends & earn 5,000 KES!
@@ -95,7 +71,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <header className="p-5 sticky top-0 bg-[#060708]/90 backdrop-blur-xl z-50 border-b border-white/5">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2.5">
@@ -116,13 +92,11 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          className="flex items-center justify-between bg-white/[0.03] border border-white/5 p-2 pr-4 rounded-2xl cursor-pointer active:scale-[0.98] transition-all"
-          onClick={() => navigate('/account')}
-        >
+        <div onClick={() => navigate('/account')}
+          className="flex items-center justify-between bg-white/[0.03] border border-white/5 p-2 pr-4 rounded-2xl cursor-pointer active:scale-[0.98] transition-all">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-yellow-500 to-yellow-200 flex items-center justify-center">
-              <User size={18} className="text-[#060708] font-bold" />
+              <User size={18} className="text-[#060708]" />
             </div>
             <div>
               <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">Portfolio Account</p>
@@ -135,7 +109,7 @@ export default function Home() {
 
       <main className="p-5 space-y-8 animate-in fade-in duration-500">
 
-        {/* ── Main Asset Card ── */}
+        {/* Main Asset Card */}
         <section className="bg-gradient-to-br from-[#1c1f25] to-[#0b0e11] p-6 rounded-[2.5rem] border border-white/5 relative overflow-hidden shadow-2xl">
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-2">
@@ -145,10 +119,8 @@ export default function Home() {
                   {hideBalance ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
-              <button
-                onClick={toggleCurrency}
-                className="bg-yellow-500/10 border border-yellow-500/20 px-2 py-1 rounded-lg flex items-center gap-1.5 transition-all active:scale-90"
-              >
+              <button onClick={toggleCurrency}
+                className="bg-yellow-500/10 border border-yellow-500/20 px-2 py-1 rounded-lg flex items-center gap-1.5 active:scale-90 transition-all">
                 <RefreshCw size={10} className="text-yellow-500" />
                 <span className="text-[10px] font-black text-yellow-500">{currency}</span>
               </button>
@@ -159,16 +131,11 @@ export default function Home() {
                 {formatDisplay(balanceInKES)}
               </h2>
               <div className="flex items-center gap-2 mt-2">
-                <span className="bg-green-500/10 text-green-500 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                  +2.4% Today
-                </span>
-                <span className="text-gray-600 text-[9px] font-bold uppercase tracking-tighter">
-                  Profit {formatDisplay(162040)}
-                </span>
+                <span className="bg-green-500/10 text-green-500 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">+2.4% Today</span>
+                <span className="text-gray-600 text-[9px] font-bold uppercase tracking-tighter">Profit {formatDisplay(162040)}</span>
               </div>
             </div>
 
-            {/* Asset Breakdown */}
             {!hideBalance && (
               <div className="flex gap-4 mb-8 py-3 border-y border-white/5">
                 <div className="flex-1">
@@ -187,29 +154,28 @@ export default function Home() {
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              <button className="bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 transition-all duration-300 hover:shadow-xl hover:shadow-yellow-500/10 active:scale-95">
+              <button onClick={() => navigate('/account')}
+                className="bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 transition-all active:scale-95 hover:shadow-xl hover:shadow-yellow-500/10">
                 <ArrowDownLeft size={18} strokeWidth={3} /> Deposit
               </button>
-              <button className="bg-white/5 border border-white/10 py-4 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 transition-all duration-300 hover:bg-black hover:text-yellow-500 active:scale-95 group">
+              <button onClick={() => navigate('/account')}
+                className="bg-white/5 border border-white/10 py-4 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 transition-all hover:text-yellow-500 active:scale-95 group">
                 <ArrowUpRight size={18} strokeWidth={3} className="group-hover:text-yellow-500 transition-colors" /> Withdraw
               </button>
             </div>
           </div>
         </section>
 
-        {/* ── Financial Services Grid ── */}
+        {/* Services Grid */}
         <section className="grid grid-cols-4 gap-4">
           {[
-            { label: 'Events',  icon: <Trophy />,  color: 'text-orange-400' },
-            { label: 'Loans',   icon: <Banknote />, color: 'text-green-400' },
-            { label: 'Network', icon: <Users />,    color: 'text-blue-400' },
-            { label: 'Markets', icon: <Zap />,      color: 'text-yellow-400', onClick: () => navigate('/markets') },
+            { label: 'Events',  icon: <Trophy />,  color: 'text-orange-400', to: null },
+            { label: 'Loans',   icon: <Banknote />, color: 'text-green-400', to: '/loans' },
+            { label: 'Network', icon: <Users />,    color: 'text-blue-400',  to: null },
+            { label: 'Markets', icon: <Zap />,      color: 'text-yellow-400',to: '/markets' },
           ].map((item, i) => (
-            <div
-              key={i}
-              onClick={item.onClick}
-              className="flex flex-col items-center gap-2 cursor-pointer group active:scale-90 transition-transform"
-            >
+            <div key={i} onClick={() => item.to && navigate(item.to)}
+              className="flex flex-col items-center gap-2 cursor-pointer group active:scale-90 transition-transform">
               <div className="w-14 h-14 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-center group-hover:border-yellow-500/50 transition-all">
                 {React.cloneElement(item.icon, { size: 22, className: item.color })}
               </div>
@@ -218,39 +184,34 @@ export default function Home() {
           ))}
         </section>
 
-        {/* ── Instant MMM-Credit Banner ── */}
-        <section className="bg-yellow-500/10 border border-yellow-500/20 p-5 rounded-3xl flex justify-between items-center relative overflow-hidden">
+        {/* MMM Credit Banner */}
+        <section onClick={() => navigate('/loans')}
+          className="bg-yellow-500/10 border border-yellow-500/20 p-5 rounded-3xl flex justify-between items-center relative overflow-hidden cursor-pointer active:scale-[0.99] transition-all">
           <div className="absolute inset-y-0 left-0 w-1.5 bg-yellow-500" />
           <div>
             <h3 className="text-yellow-500 font-black text-sm uppercase tracking-tight italic leading-tight">Instant MMM-Credit</h3>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight mt-1">Borrow up to 30,000 KES</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight mt-1">Borrow up to KES 26,100</p>
           </div>
           <button className="bg-yellow-500 text-black px-5 py-2 rounded-xl text-[10px] font-black uppercase active:scale-95 transition-all shadow-lg shadow-yellow-500/20">
             Apply
           </button>
         </section>
 
-        {/* ── Market Pulse — Now LIVE ── */}
+        {/* Market Pulse — Live */}
         <section>
           <div className="flex justify-between items-end mb-5 px-1">
             <h3 className="text-lg font-black uppercase italic tracking-tighter">Market Pulse</h3>
-            <span
-              className="text-yellow-500 text-[10px] font-black uppercase tracking-widest cursor-pointer hover:underline"
-              onClick={() => navigate('/markets')}
-            >
+            <span onClick={() => navigate('/markets')}
+              className="text-yellow-500 text-[10px] font-black uppercase tracking-widest cursor-pointer hover:underline">
               View All
             </span>
           </div>
-
           <div className="space-y-3">
-            {PULSE_COINS.map((coin) => {
-              const live = livePrices[coin.id];
+            {PULSE_COINS.map(coin => {
+              const live = livePrices[coin.symbol];
               return (
-                <div
-                  key={coin.id}
-                  onClick={() => navigate(`/trade/${coin.symbol}`)}
-                  className="flex justify-between items-center p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all cursor-pointer active:scale-[0.98]"
-                >
+                <div key={coin.symbol} onClick={() => navigate(`/trade/${coin.symbol}`)}
+                  className="flex justify-between items-center p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all cursor-pointer active:scale-[0.98]">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center font-black text-[10px] italic">
                       {coin.letter}
@@ -273,7 +234,7 @@ export default function Home() {
       </main>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        @keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
         .animate-marquee { animation: marquee 20s linear infinite; }
       `}} />
     </div>
